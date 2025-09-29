@@ -1,0 +1,91 @@
+
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["windows"]
+  output   = "./src/main/server/prisma/generated/client" 
+}
+
+model Client {
+  id        Int      @id @default(autoincrement())
+  name      String
+  phone     String?
+  address   String?
+  invoices  Invoice[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Product {
+  id        Int      @id @default(autoincrement())
+  name      String
+  price     Float
+  unit      String?  @default("unité")
+  description String?
+  invoices  InvoiceItem[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Invoice {
+  id            Int          @id @default(autoincrement())
+  invoiceNumber String       @unique
+  clientId      Int
+  client        Client       @relation(fields: [clientId], references: [id])
+  date          DateTime     @default(now())
+  dueDate       DateTime?
+  paid          Boolean      @default(false)
+  items         InvoiceItem[]
+  total         Float        @default(0)
+  note          String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  @@index([clientId])
+  @@index([date])
+}
+
+model InvoiceItem {
+  id         Int      @id @default(autoincrement())
+  invoiceId  Int
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id])
+  productId  Int
+  product    Product  @relation(fields: [productId], references: [id])
+  quantity   Int      @default(1)
+  unitPrice  Float
+  total      Float    @default(0)
+  @@index([invoiceId])
+  @@index([productId])
+}
+
+model User {
+  id           Int                @id @default(autoincrement())
+  email        String             @unique
+  password     String
+  name         String?
+  loginType    String             @default("email") // "email" or "username"
+  username     String?            @unique
+  theme        String             @default("light") // "light" or "dark"
+  language     String             @default("fr")
+  activityLogs UserActivityLog[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+}
+
+model UserActivityLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String   // LOGIN_SUCCESS, LOGIN_ATTEMPT, PASSWORD_CHANGED, PROFILE_UPDATED, etc.
+  details   String?  // JSON string with additional details
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  
+  @@index([userId])
+  @@index([createdAt])
+}
