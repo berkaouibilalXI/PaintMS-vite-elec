@@ -15,7 +15,6 @@ const getInvoicePrintData = async (id) => {
     return response.data;
 }
 
-
 const createInvoice = async (invoiceData) => {
     const response = await api.post('/invoices', invoiceData);
     return response.data;
@@ -41,21 +40,20 @@ const markAsUnpaid = async (id) => {
     return response.data;
 }
 
-// Enhanced print function that works in both Electron and Web
 // Single invoice print
 const printInvoice = async (invoiceId) => {
     try {
-        // Get print data from backend
+        // Get print data from backend (HTML template comes from backend)
         const { printHTML } = await getInvoicePrintData(invoiceId);
        
         // Check if we're in Electron
-        if (window.electronAPI && window.electronAPI.isElectron) {
-            // Use Electron's native print functionality with print()
-            const result = await window.electronAPI.print(printHTML, {
-                silent: false, // Show print dialog
-                printBackground: true, // Print background colors/images
+        if (window.api && window.api.isElectron) {
+            // Use Electron's native print functionality
+            const result = await window.api.print(printHTML, {
+                silent: false,
+                printBackground: true,
                 margins: {
-                    marginType: 'default' // or 'none', 'printableArea', 'custom'
+                    marginType: 'default'
                 }
             });
             return { success: result };
@@ -84,7 +82,7 @@ const printMultipleInvoices = async (invoiceIds) => {
         const printPromises = invoiceIds.map(id => getInvoicePrintData(id));
         const printDataArray = await Promise.all(printPromises);
        
-        // Combine all HTML with proper page breaks
+        // Combine all HTML with proper page breaks (keeping original HTML from backend)
         const combinedHTML = `
             <!DOCTYPE html>
             <html>
@@ -125,10 +123,10 @@ const printMultipleInvoices = async (invoiceIds) => {
             </html>
         `;
         
-        if (window.electronAPI && window.electronAPI.isElectron) {
+        if (window.api && window.api.isElectron) {
             // Use Electron's print() function for batch printing
-            const result = await window.electronAPI.print(combinedHTML, {
-                silent: false, // Show print dialog so user can verify
+            const result = await window.api.print(combinedHTML, {
+                silent: false,
                 printBackground: true,
                 margins: {
                     marginType: 'default'
@@ -155,6 +153,80 @@ const printMultipleInvoices = async (invoiceIds) => {
     }
 }
 
+const exportInvoiceToPDF = async (invoiceId, fileName = null) => {
+    try {
+        const { printHTML } = await getInvoicePrintData(invoiceId);
+        
+        if (window.api && window.api.isElectron) {
+            const result = await window.api.exportPDF(printHTML, {
+                defaultFileName: fileName || `facture-${invoiceId}.pdf`
+            });
+            return result;
+        } else {
+            // Fallback for web - open print dialog
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(printHTML);
+            printWindow.document.close();
+            setTimeout(() => printWindow.print(), 500);
+            return { success: true };
+        }
+    } catch (error) {
+        console.error('PDF export error:', error);
+        throw error;
+    }
+}
+
+// Export multiple invoices to single PDF
+const exportMultipleInvoicesToPDF = async (invoiceIds) => {
+    try {
+        const printPromises = invoiceIds.map(id => getInvoicePrintData(id));
+        const printDataArray = await Promise.all(printPromises);
+        
+        const combinedHTML = `
+            <!DOCTYPE html>
+            <html>
+                <head>
+                    <meta charset="utf-8">
+                    <title>Factures - ${invoiceIds.length} documents</title>
+                    <style>
+                        body { margin: 0; font-family: Arial, sans-serif; }
+                        .page-break { page-break-after: always; page-break-inside: avoid; }
+                        .page-break:last-child { page-break-after: avoid; }
+                        @page { margin: 15mm; size: A4; }
+                        @media print { body { -webkit-print-color-adjust: exact; } }
+                    </style>
+                </head>
+                <body>
+                    ${printDataArray.map((data) => `
+                        <div class="page-break">
+                            ${data.printHTML
+                                .replace(/<!DOCTYPE html>.*?<body>/s, '')
+                                .replace(/<\/body>.*<\/html>/s, '')
+                            }
+                        </div>
+                    `).join('')}
+                </body>
+            </html>
+        `;
+        
+        if (window.api && window.api.isElectron) {
+            const result = await window.api.exportPDF(combinedHTML, {
+                defaultFileName: `factures-${invoiceIds.length}-documents.pdf`
+            });
+            return result;
+        } else {
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(combinedHTML);
+            printWindow.document.close();
+            setTimeout(() => printWindow.print(), 500);
+            return { success: true };
+        }
+    } catch (error) {
+        console.error('Batch PDF export error:', error);
+        throw error;
+    }
+}
+
 export default {
     getInvoices,
     getInvoiceById,
@@ -165,5 +237,7 @@ export default {
     markAsUnpaid,
     markAsPaid,
     printInvoice,
-    printMultipleInvoices
+    printMultipleInvoices,
+    exportInvoiceToPDF,
+    exportMultipleInvoicesToPDF
 };

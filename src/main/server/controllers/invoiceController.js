@@ -8,24 +8,44 @@ import {db} from "../drizzle"
 // Helper function to get logo as base64
 export const getLogoBase64 = () => {
   try {
-    // Try different possible paths for the logo
-    const possiblePaths = [
-      path.join(__dirname, '../../frontend/src/assets/logo.png'),
-      path.join(__dirname, '../../assets/logo.png'),
-      path.join(__dirname, '../assets/logo.png'),
-      path.join(process.cwd(), 'assets/logo.png'),
-      path.join(process.cwd(), 'frontend/src/assets/logo.png')
+    // Determine the correct path based on environment
+    const isDev = process.env.NODE_ENV === 'development';
+    
+    let logoPath;
+    if (isDev) {
+      // In development, go up from server/controllers to project root
+      logoPath = path.join(__dirname, '../../resources/icon.png');
+    } else {
+      // In production (packaged app), resources are in app.asar or resources folder
+      const { app } = require('electron');
+      logoPath = path.join(process.resourcesPath, 'icon.png');
+    }
+
+    console.log('Attempting to load logo from:', logoPath);
+
+    if (fs.existsSync(logoPath)) {
+      const logoBuffer = fs.readFileSync(logoPath);
+      console.log('Logo loaded successfully');
+      return logoBuffer.toString('base64');
+    }
+
+    // Fallback: try alternative paths
+    const fallbackPaths = [
+      path.join(__dirname, '../../resources/icon.icon.png'),
+      path.join(process.cwd(), 'resources/icon.png'),
+      path.join(__dirname, '../../../resources/icon.png')
     ];
 
-    for (const logoPath of possiblePaths) {
-      if (fs.existsSync(logoPath)) {
-        const logoBuffer = fs.readFileSync(logoPath);
+    for (const altPath of fallbackPaths) {
+      console.log('Trying fallback path:', altPath);
+      if (fs.existsSync(altPath)) {
+        const logoBuffer = fs.readFileSync(altPath);
+        console.log('Logo loaded from fallback path');
         return logoBuffer.toString('base64');
       }
     }
-    
-    // If no logo found, return empty string
-    console.log('Logo not found in any of the expected paths');
+
+    console.log('Logo not found in any path');
     return '';
   } catch (error) {
     console.error('Error reading logo file:', error);

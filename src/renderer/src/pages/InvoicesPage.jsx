@@ -185,8 +185,31 @@ export default function InvoicesPage() {
   };
 
   const handleExportToPDF = async (invoiceIds) => {
-    toast.info("Fonctionnalité d'export PDF à venir prochainement");
-  };
+    if (invoiceIds.length === 0) {
+        toast.error("Aucune facture sélectionnée");
+        return;
+    }
+
+    try {
+        let result;
+        if (invoiceIds.length === 1) {
+            result = await invoiceService.exportInvoiceToPDF(invoiceIds[0]);
+        } else {
+            result = await invoiceService.exportMultipleInvoicesToPDF(invoiceIds);
+        }
+
+        if (result.success) {
+            toast.success(`PDF enregistré avec succès`);
+        } else if (result.canceled) {
+            toast.info("Export annulé");
+        } else {
+            toast.error("Erreur lors de l'export PDF");
+        }
+    } catch (error) {
+        console.error("PDF export error:", error);
+        toast.error("Erreur lors de l'export PDF");
+    }
+};
 
   // Form handlers
   const handleFormSubmit = async (formData) => {
