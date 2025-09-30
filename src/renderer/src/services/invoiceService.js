@@ -42,27 +42,34 @@ const markAsUnpaid = async (id) => {
 }
 
 // Enhanced print function that works in both Electron and Web
+// Single invoice print
 const printInvoice = async (invoiceId) => {
     try {
         // Get print data from backend
         const { printHTML } = await getInvoicePrintData(invoiceId);
-        
+       
         // Check if we're in Electron
         if (window.electronAPI && window.electronAPI.isElectron) {
-            // Use Electron's native print functionality
-            const result = await window.electronAPI.printInvoice(printHTML);
-            return result;
+            // Use Electron's native print functionality with print()
+            const result = await window.electronAPI.print(printHTML, {
+                silent: false, // Show print dialog
+                printBackground: true, // Print background colors/images
+                margins: {
+                    marginType: 'default' // or 'none', 'printableArea', 'custom'
+                }
+            });
+            return { success: result };
         } else {
             // Fallback to web browser print
             const printWindow = window.open('', '_blank');
             printWindow.document.write(printHTML);
             printWindow.document.close();
             printWindow.focus();
-            
+           
             setTimeout(() => {
                 printWindow.print();
             }, 500);
-            
+           
             return { success: true };
         }
     } catch (error) {
@@ -76,8 +83,8 @@ const printMultipleInvoices = async (invoiceIds) => {
     try {
         const printPromises = invoiceIds.map(id => getInvoicePrintData(id));
         const printDataArray = await Promise.all(printPromises);
-        
-        // Combine all HTML
+       
+        // Combine all HTML with proper page breaks
         const combinedHTML = `
             <!DOCTYPE html>
             <html>
@@ -85,34 +92,61 @@ const printMultipleInvoices = async (invoiceIds) => {
                     <meta charset="utf-8">
                     <title>Impression Multiple - ${invoiceIds.length} Factures</title>
                     <style>
-                        body { margin: 0; font-family: Arial, sans-serif; }
-                        .page-break { page-break-after: always; }
-                        .page-break:last-child { page-break-after: avoid; }
-                        @page { margin: 15mm; }
+                        body { 
+                            margin: 0; 
+                            font-family: Arial, sans-serif; 
+                        }
+                        .page-break { 
+                            page-break-after: always; 
+                            page-break-inside: avoid;
+                        }
+                        .page-break:last-child { 
+                            page-break-after: avoid; 
+                        }
+                        @page { 
+                            margin: 15mm; 
+                            size: A4;
+                        }
+                        @media print {
+                            body { -webkit-print-color-adjust: exact; }
+                        }
                     </style>
                 </head>
                 <body>
                     ${printDataArray.map((data, index) => `
                         <div class="page-break">
-                            ${data.printHTML.replace(/<!DOCTYPE html>.*?<body>/s, '').replace('</body></html>', '')}
+                            ${data.printHTML
+                                .replace(/<!DOCTYPE html>.*?<body>/s, '')
+                                .replace(/<\/body>.*<\/html>/s, '')
+                            }
                         </div>
                     `).join('')}
                 </body>
             </html>
         `;
-
+        
         if (window.electronAPI && window.electronAPI.isElectron) {
-            return await window.electronAPI.printInvoice(combinedHTML);
+            // Use Electron's print() function for batch printing
+            const result = await window.electronAPI.print(combinedHTML, {
+                silent: false, // Show print dialog so user can verify
+                printBackground: true,
+                margins: {
+                    marginType: 'default'
+                },
+                pageSize: 'A4'
+            });
+            return { success: result };
         } else {
+            // Fallback to web browser print
             const printWindow = window.open('', '_blank');
             printWindow.document.write(combinedHTML);
             printWindow.document.close();
             printWindow.focus();
-            
+           
             setTimeout(() => {
                 printWindow.print();
             }, 500);
-            
+           
             return { success: true };
         }
     } catch (error) {

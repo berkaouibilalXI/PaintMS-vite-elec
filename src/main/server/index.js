@@ -66,10 +66,6 @@ app.get('/', async (req, res) => {
 app.use(errorHandler);
 
 //demarrage du serveur
-app.listen(PORT, () => {
-  console.log(`Backend Express lancé sur http://localhost:${PORT}`);
-  console.log(`Mode: ${isDevelopment ? 'Development' : 'Production'}`);
-});
 
 export function startServer(port = PORT) {
   return new Promise((resolve) => {

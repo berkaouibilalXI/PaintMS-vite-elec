@@ -4,8 +4,14 @@ import { join } from 'path'
 import icon from '../../resources/icon.png?asset'
 import { db } from './server/drizzle'
 import { seed } from './server/seed'
-import {startServer} from "./server/index";
+import { startServer } from "./server/index"
+import { initializeDatabase } from './server/seed'
+
 function createWindow() {
+  console.log('====APP STARTED===')
+  console.log('Environment ->', process.env.NODE_ENV)
+  console.log("Is Dev?: ", is.dev);
+  console.log("UserData Path: ", app.getPath("userData"))
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 900,
@@ -21,6 +27,8 @@ function createWindow() {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+    // TEMPORARY: Open DevTools to see errors
+    mainWindow.webContents.openDevTools()
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -33,8 +41,11 @@ function createWindow() {
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
+    // FIXED: Changed from '../dist/index.html' to '../renderer/index.html'
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+  initializeDatabase()
+  startServer()
 }
 
 // This method will be called when Electron has finished
@@ -46,7 +57,6 @@ app.whenReady().then(async () => {
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
-  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
@@ -56,24 +66,19 @@ app.whenReady().then(async () => {
 
   createWindow()
   startServer()
+
   ///////////////TEST AREA////////////////
   const SEED_ENV = import.meta.env.M_VITE_SEED === "true"
-  if(SEED_ENV){
-      await seed()
+  if (SEED_ENV) {
+    await seed()
   }
+
   const products = await db.query.products.findMany({
-    with:{
-      invoiceItems:true
+    with: {
+      invoiceItems: true
     }
   })
-  console.log({products})
-  
-  // const [insertedProduct] = await db.insert(products).values({
-    
-  // })
-  
-  // products.map(p=> p.invoiceItems.map(it => it.))
-  
+  console.log({ products })
   ///////////////TEST AREA////////////////
 
   app.on('activate', function () {
@@ -91,6 +96,3 @@ app.on('window-all-closed', () => {
     app.quit()
   }
 })
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.

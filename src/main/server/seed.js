@@ -1,80 +1,140 @@
-const bcrypt = require('bcryptjs');
-import {db} from "../server/drizzle"
-import {users} from "../server/drizzle/schemas"
-
+import bcrypt from 'bcryptjs';
+import { db } from "./drizzle/index.js";
+import { users } from "./drizzle/schemas";
 import { eq } from "drizzle-orm";
+import { app } from 'electron';
+import path from 'path';
+import fs from 'fs';
+import { runMigrations } from './drizzle/migrations.js';
 
-export async function seed() {
-    try {
-        // Hash the password
-        const hashedPassword = await bcrypt.hash('admin123', 10);
-        
-        // Check if admin user already exists
-        const existingAdmin = await db
-            .select()
-            .from(users)
-            .where(eq(users.email, 'admin@paintms.com'))
-            .limit(1);
-        
-        let admin;
-        
-        if (existingAdmin.length > 0) {
-            // User exists, optionally update (equivalent to upsert update)
-            admin = existingAdmin[0];
-            console.log('Admin user already exists:', admin);
-        } else {
-            // Create new admin user
-            const newAdmin = await db
-                .insert(users)
-                .values({
-                    email: 'admin@paintms.com',
-                    password: hashedPassword,
-                    name: 'Admin PaintMS'
-                })
-                .returning(); // Returns the created record(s)
-            
-            admin = newAdmin[0];
-            console.log('Admin user created:', admin);
-        }
-        
-        console.log('Utilisateur admin créé ou déjà existant:', admin);
-        
-    } catch (error) {
-        console.error('Error in main function:', error);
-        throw error;
-    }
+/**
+ * Check if the database has been seeded
+ */
+export async function isDatabaseSeeded() {
+  try {
+    const existingUsers = await db
+      .select()
+      .from(users)
+      .limit(1);
+    
+    return existingUsers.length > 0;
+  } catch (error) {
+    console.error('Error checking if database is seeded:', error);
+    return false;
+  }
 }
 
-// const bcrypt = require('bcryptjs');
+/**
+ * Create seed flag file to prevent re-seeding
+ */
+function createSeedFlag() {
+  try {
+    const userDataPath = app.getPath('userData');
+    const flagPath = path.join(userDataPath, '.seeded');
+    fs.writeFileSync(flagPath, new Date().toISOString());
+    console.log('✓ Seed flag created at:', flagPath);
+  } catch (error) {
+    console.error('Error creating seed flag:', error);
+  }
+}
 
+/**
+ * Check if seed flag exists
+ */
+function seedFlagExists() {
+  try {
+    const userDataPath = app.getPath('userData');
+    const flagPath = path.join(userDataPath, '.seeded');
+    return fs.existsSync(flagPath);
+  } catch (error) {
+    console.error('Error checking seed flag:', error);
+    return false;
+  }
+}
 
-// import {getPrismaSingletonClient} from "../prisma/utils/prismaClient"
-// const prisma = getPrismaSingletonClient()
+/**
+ * Seed the database with initial admin user
+ */
+export async function seed() {
+  try {
+    console.log('=================================');
+    console.log('Starting database seed...');
+    console.log('=================================');
+    
+    // Check if already seeded via flag
+    if (seedFlagExists()) {
+      console.log('✓ Database already seeded (flag exists). Skipping...');
+      return;
+    }
 
+    // Check if users exist
+    const isSeeded = await isDatabaseSeeded();
+    if (isSeeded) {
+      console.log('✓ Database already has users. Skipping seed...');
+      createSeedFlag();
+      return;
+    }
 
-// async function main(){
-//     //nhashiw le mdps
-//     const hashedPassword =  await bcrypt.hash('admin123', 10);
+    console.log('No users found. Creating admin user...');
 
-//     //ncreyiw l'utilisateur admin
-//     const admin = await prisma.user.upsert({
-//         where: {email: 'admin@paintms.com'},
-//         update: {},
-//         create: {
-//             email: 'admin@paintms.com',
-//             password: hashedPassword,
-//             name: 'Admin PaintMS'
-//         }
-//     });
+    // Hash the password
+    const hashedPassword = await bcrypt.hash('admin123', 10);
+    
+    // Create admin user with username
+    const newAdmin = await db
+      .insert(users)
+      .values({
+        username: 'adminms',
+        email: 'admin@paintms.com',
+        password: hashedPassword,
+        name: 'Admin PaintMS',
+        theme: 'light',
+        language: 'fr',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning();
+    
+    const admin = newAdmin[0];
+    
+    console.log('=================================');
+    console.log('✓ Admin user created successfully!');
+    console.log('=================================');
+    console.log('  Username: adminms');
+    console.log('  Password: admin123');
+    console.log('  Email:', admin.email);
+    console.log('=================================');
+    
+    // Create seed flag
+    createSeedFlag();
+    
+    return admin;
+    
+  } catch (error) {
+    console.error('=================================');
+    console.error('✗ Error seeding database:', error);
+    console.error('=================================');
+    throw error;
+  }
+}
 
-//     console.log('Utilisateur admin créé ou déjà existant:', admin);
-// }
-
-// main()
-//     .catch(e => {
-//         console.error(e);
-//         process.exit(1);
-//     })
-//     .finally(async ()=>{
-//         await prisma.$disconnect();
-//     })
+/**
+ * Initialize database - runs migrations and seeds if needed
+ */
+export async function initializeDatabase() {
+  try {
+    console.log('Initializing database...');
+    
+    // CRITICAL: Run migrations first to create tables
+    await runMigrations();
+    
+    // Then run seed if needed
+    await seed();
+    
+    console.log('✓ Database initialization complete!');
+    
+  } catch (error) {
+    console.error('✗ Database initialization failed:', error);
+    throw error;
+  }
+}

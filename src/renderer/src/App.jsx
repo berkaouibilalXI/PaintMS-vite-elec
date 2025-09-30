@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { HashRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { DarkModeProvider, useDarkMode } from "./context/DarkModeContext";
 import DashboardPage from "./pages/DashboardPage";
@@ -10,6 +10,7 @@ import { createTheme, ThemeProvider, CssBaseline } from "@mui/material";
 import { AnimatePresence } from "framer-motion";
 import Layout from "./components/layout/Layout";
 import SettingsPage from "./pages/SettingsPage";
+import { Toaster } from "react-hot-toast"; // ADD THIS IMPORT
 import "./index.css";
 
 function PrivateRoute({ children }) {
@@ -26,7 +27,7 @@ function PrivateRoute({ children }) {
 // Component for dashboard pages with Material-UI
 function DashboardRoutes() {
   const { darkMode } = useDarkMode();
-  
+ 
   const theme = createTheme({
     palette: {
       mode: darkMode ? "dark" : "light",
@@ -36,7 +37,7 @@ function DashboardRoutes() {
     },
     shape: { borderRadius: 10 },
   });
-
+  
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -99,6 +100,17 @@ function AppContent() {
           <Route path="/*" element={<DashboardRoutes />} />
         </Routes>
       </AnimatePresence>
+      {/* ADD THIS LINE - Toaster for notifications */}
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+        }}
+      />
     </Router>
   );
 }
