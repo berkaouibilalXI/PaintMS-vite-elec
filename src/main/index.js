@@ -130,7 +130,9 @@ ipcMain.handle('print-content', async (event, htmlContent, options = {}) => {
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
 
-  autoUpdater.checkForUpdatesAndNotify();
+  setInterval(() => {
+        autoUpdater.checkForUpdatesAndNotify();
+    }, 1000 * 60 * 15);
 
   autoUpdater.on('update-available', (info)=>{
     dialog.showMessageBox({
