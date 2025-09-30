@@ -1,17 +1,32 @@
-node_modules
-dist
-out
+# Dependencies
+/node_modules
+/.npmrc # (Unless you need to share specific registry/config for the team)
+/.pnpm-store
+/.yarn/cache
+
+# Build/Generated folders and files
+/build
+/out
+/release
+/dist
+
+# Environment and Local Data
+/.env
+/.env.*local
+/sqlite.db
+/*.sqlite
+
+# VS Code
+/.vscode/
+
+# Drizzle (Add specific files if Drizzle creates large, unneeded files)
+# /drizzle # (If Drizzle generates files in a 'drizzle' directory)
+
+# Operating System Files
 .DS_Store
-.eslintcache
-*.log*
-.prettierignore
-.npmrc
-.prettierc.yaml
-release/
-dist/
-out/
-.vscode/
-*.exe
-*.zip
-*.asar
-.editorconfig
+Thumbs.db
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
