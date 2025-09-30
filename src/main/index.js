@@ -227,12 +227,16 @@ app.whenReady().then(async () => {
   })
 
 
+  try {
   const products = await db.query.products.findMany({
     with: {
       invoiceItems: true
     }
   })
   console.log({ products })
+} catch (error) {
+  console.error('Failed to query products:', error.message)
+}
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

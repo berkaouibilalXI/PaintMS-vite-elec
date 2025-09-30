@@ -5,6 +5,10 @@
   "main": "out/main/index.js",
   "author": "Berkaoui Bilal",
   "homepage": "https://berkaouibilal.netlify.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/berkaouibilalXI/PaintMS-vite-elec.git"
+  },
   "build": {
     "asarUnpack": [
       "node_modules/**/*.node",
@@ -34,6 +38,12 @@
     "win":{
       "icon":"resources/icon.ico",
       "target": ["nsis"]
+    },
+    "nsis":{
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
     }
   },
   "scripts": {
