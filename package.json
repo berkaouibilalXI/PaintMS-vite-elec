@@ -1,5 +1,5 @@
 {
-  "name": "Paint-MS",
+  "name": "paintms",
   "version": "1.0.2-pre",
   "description": "PaintMS Logiciel",
   "main": "out/main/index.js",
@@ -33,7 +33,7 @@
     "icon": "resources/icon.png",
     "win":{
       "icon":"resources/icon.ico",
-      "category": "public.app-category.business"
+      "target": ["nsis"]
     }
   },
   "scripts": {
