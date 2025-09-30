@@ -5,10 +5,10 @@
 /.yarn/cache
 
 # Build/Generated folders and files
-/build
 /out
 /release
 /dist
+build/
 
 # Environment and Local Data
 /.env
