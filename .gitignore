@@ -4,4 +4,7 @@ out
 .DS_Store
 .eslintcache
 *.log*
+.prettierignore
+.npmrc
+.prettierc.yaml
 
