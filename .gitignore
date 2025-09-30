@@ -8,3 +8,8 @@ out
 .npmrc
 .prettierc.yaml
 
+release/
+dist/
+*.exe
+*.zip
+*.asar
