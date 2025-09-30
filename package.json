@@ -1,6 +1,6 @@
 {
-  "name": "Paint MS",
-  "version": "1.0.2-alpha",
+  "name": "Paint-MS",
+  "version": "1.0.2-pre",
   "description": "PaintMS Logiciel",
   "main": "out/main/index.js",
   "author": "Berkaoui Bilal",
@@ -27,6 +27,13 @@
       "provider": "github",
       "owner": "berkaouibilalXI",
       "repo": "PaintMS-vite-elec"
+    },
+    "appId": "com.paintms.bilal.app",
+    "productName":"PaintMS",
+    "icon": "resources/icon.png",
+    "win":{
+      "icon":"resources/icon.ico",
+      "category": "public.app-category.business"
     }
   },
   "scripts": {
