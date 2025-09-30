@@ -1,19 +1,15 @@
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, dialog} from 'electron'
+import log from 'electron-log'
 import path, { join, resolve } from 'path'
+import {autoUpdater} from 'electron-updater'
 import icon from '../../resources/icon.png?asset'
 import { db } from './server/drizzle'
 import { seed } from './server/seed'
 import { startServer } from './server/index'
 import { initializeDatabase } from './server/seed'
 
-function createWindow() {
-  console.log('====APP STARTED===')
-  console.log('Environment ->', process.env.NODE_ENV)
-  console.log('Is Dev?: ', is.dev)
-  console.log('UserData Path: ', app.getPath('userData'))
-
-  // Create the browser window.
+// Create the browser window.
   let mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
@@ -28,6 +24,11 @@ function createWindow() {
     au
   })
 
+function createWindow() {
+  console.log('====APP STARTED===')
+  console.log('Environment ->', process.env.NODE_ENV)
+  console.log('Is Dev?: ', is.dev)
+  console.log('UserData Path: ', app.getPath('userData'))
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
 
@@ -126,6 +127,49 @@ ipcMain.handle('print-content', async (event, htmlContent, options = {}) => {
 });
 
   createWindow()
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.checkForUpdatesAndNotify();
+
+  autoUpdater.on('update-available', (info)=>{
+    dialog.showMessageBox({
+      type: "info",
+      title: "Nouvelle Mise à Jour Disponible",
+      message: `Nouvelle version (${info.version}) est disponible. Voulez-vous la télécharger?`,
+      buttons:['Télécharger', 'Aprés']
+    }).then(result=>{
+      if(result.response===0){
+        //Download Clicked aya updati
+        autoUpdater.downloadUpdate();
+      }
+    });
+  });
+
+  autoUpdater.on('download-progress', (progressTrack)=>{
+    log.info('Progression du téléchargement', progressTrack);
+    if(mainWindow){
+      mainWindow.webContents.send('download-progress', progressTrack)
+    }
+  })
+
+  autoUpdater.on('update-downloaded', ()=>{
+    dialog.showMessageBox({
+      type: 'info',
+      title:'Mise à jour prete',
+      message:'Mise à jour téléchargé avec succés et va être installé au prochain redémarrage. Redémarrer maintent?',
+      buttons:['Redémarrer', 'Pas maintenant']
+    }).then(result=>{
+      if(result.response===0){
+        autoUpdater.quitAndInstall()
+      }
+    })
+  })
+
+  autoUpdater.on('error', (err)=>{
+    console.error('Autoupdater error: ', err)
+    dialog.showErrorBox('Erreur de Mise à jour','Un erreur est survenu lors de la mise à jour, veuillez réessayer plus tard')
+  })
 
   ///////////////TEST AREA////////////////
   const SEED_ENV = import.meta.env.M_VITE_SEED === 'true'
