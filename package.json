@@ -1,10 +1,10 @@
 {
-  "name": "paintms",
-  "version": "1.0.2a",
-  "description": "An Electron application with React",
+  "name": "Paint MS",
+  "version": "1.0.2-alpha",
+  "description": "PaintMS Logiciel",
   "main": "out/main/index.js",
-  "author": "example.com",
-  "homepage": "https://electron-vite.org",
+  "author": "Berkaoui Bilal",
+  "homepage": "https://berkaouibilal.netlify.app",
   "build": {
     "asarUnpack": [
       "node_modules/**/*.node",
@@ -38,6 +38,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
+    "db:seed" : "node src/main/server/seed.js",
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win",

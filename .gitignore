@@ -1,32 +1,63 @@
+# -------------------------
 # Dependencies
-/node_modules
-/.npmrc # (Unless you need to share specific registry/config for the team)
-/.pnpm-store
-/.yarn/cache
+# -------------------------
+node_modules/
+.pnpm-store/
+.yarn/cache/
 
-# Build/Generated folders and files
-/out
-/release
-/dist
+# Package manager configs (keep private)
+.npmrc
+
+# -------------------------
+# Build / Output
+# -------------------------
 build/
+out/
+release/
+dist/
 
-# Environment and Local Data
-/.env
-/.env.*local
-/sqlite.db
-/*.sqlite
+# -------------------------
+# Environment / Secrets
+# -------------------------
+.env
+.env.*local
+*.env
 
-# VS Code
-/.vscode/
+# -------------------------
+# Databases / Generated Data
+# -------------------------
+sqlite.db
+*.sqlite
 
-# Drizzle (Add specific files if Drizzle creates large, unneeded files)
-# /drizzle # (If Drizzle generates files in a 'drizzle' directory)
+# -------------------------
+# IDE / Editor
+# -------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
 
-# Operating System Files
-.DS_Store
-Thumbs.db
+# -------------------------
+# Formatting / Config (local only)
+# -------------------------
+.prettierignore
+.prettierrc
+.prettierrc.*
+.eslintrc
+.eslintrc.*
+.stylelintrc
+.stylelintrc.*
 
+# -------------------------
 # Logs
+# -------------------------
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+
+# -------------------------
+# OS / Misc
+# -------------------------
+.DS_Store
+Thumbs.db
