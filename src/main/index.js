@@ -1,13 +1,16 @@
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron'
 import log from 'electron-log'
-import path, { join, resolve } from 'path'
+import path, { join } from 'path'
 import { autoUpdater } from 'electron-updater'
 import icon from '../../resources/icon.png?asset'
-import { db } from './server/drizzle'
-import { seed } from './server/seed'
-import { startServer } from './server/index'
-import { initializeDatabase } from './server/seed'
+import { initializeDatabase } from './server/seed.js'
+import { startServer } from './server/index.js'
+import { db } from './server/drizzle/index.js'
+
+// Configure electron-log
+log.transports.file.level = 'info'
+autoUpdater.logger = log
 
 let mainWindow = null
 
@@ -16,6 +19,7 @@ function createWindow() {
   console.log('Environment ->', process.env.NODE_ENV)
   console.log('Is Dev?: ', is.dev)
   console.log('UserData Path: ', app.getPath('userData'))
+  console.log('App Version:', app.getVersion())
 
   // Create the browser window.
   mainWindow = new BrowserWindow({
@@ -57,6 +61,98 @@ function createWindow() {
   startServer()
 }
 
+// Setup auto-updater
+function setupAutoUpdater() {
+  // Skip in development
+  if (is.dev) {
+    log.info('Skipping auto-updater in development mode')
+    return
+  }
+
+  log.info('Setting up auto-updater...')
+  log.info('Current version:', app.getVersion())
+
+  autoUpdater.autoDownload = false
+  autoUpdater.autoInstallOnAppQuit = true
+
+  autoUpdater.on('checking-for-update', () => {
+    log.info('Checking for updates...')
+    console.log('Checking for updates...')
+  })
+
+  autoUpdater.on('update-available', (info) => {
+    log.info('Update available:', info.version)
+    console.log('Update available:', info.version)
+    
+    dialog
+      .showMessageBox({
+        type: 'info',
+        title: 'Nouvelle Mise à Jour Disponible',
+        message: `Nouvelle version (${info.version}) est disponible. Voulez-vous la télécharger?`,
+        buttons: ['Télécharger', 'Après']
+      })
+      .then((result) => {
+        if (result.response === 0) {
+          autoUpdater.downloadUpdate()
+        }
+      })
+  })
+
+  autoUpdater.on('update-not-available', (info) => {
+    log.info('Update not available. Current version is', info.version)
+    console.log('No updates available. Current version:', info.version)
+  })
+
+  autoUpdater.on('download-progress', (progressTrack) => {
+    log.info('Download progress:', progressTrack.percent)
+    console.log('Download progress:', progressTrack.percent + '%')
+    
+    if (mainWindow) {
+      mainWindow.webContents.send('download-progress', progressTrack)
+    }
+  })
+
+  autoUpdater.on('update-downloaded', (info) => {
+    log.info('Update downloaded:', info.version)
+    console.log('Update downloaded:', info.version)
+    
+    dialog
+      .showMessageBox({
+        type: 'info',
+        title: 'Mise à jour prête',
+        message: `Mise à jour téléchargée avec succès et va être installée au prochain redémarrage. Redémarrer maintenant?`,
+        buttons: ['Redémarrer', 'Pas maintenant']
+      })
+      .then((result) => {
+        if (result.response === 0) {
+          autoUpdater.quitAndInstall()
+        }
+      })
+  })
+
+  autoUpdater.on('error', (err) => {
+    log.error('Auto-updater error:', err)
+    console.error('Auto-updater error:', err)
+    
+    dialog.showErrorBox(
+      'Erreur de Mise à jour',
+      `Une erreur est survenue lors de la mise à jour: ${err.message}`
+    )
+  })
+
+  // Check for updates immediately
+  setTimeout(() => {
+    log.info('Triggering initial update check...')
+    autoUpdater.checkForUpdates()
+  }, 3000) // Wait 3 seconds after app starts
+
+  // Check every 15 minutes
+  setInterval(() => {
+    log.info('Periodic update check...')
+    autoUpdater.checkForUpdates()
+  }, 1000 * 60 * 15)
+}
+
 app.whenReady().then(async () => {
   electronApp.setAppUserModelId('com.electron')
 
@@ -93,11 +189,8 @@ app.whenReady().then(async () => {
         }
       }
 
-      console.log('Opening system print dialog...')
-
       return new Promise((resolve) => {
         printWin.webContents.print(printOptions, (success, failureReason) => {
-          console.log('Print dialog closed. Success:', success)
           if (!success) {
             console.log('Print failure reason:', failureReason)
           }
@@ -173,70 +266,20 @@ app.whenReady().then(async () => {
 
   createWindow()
   
-  autoUpdater.autoDownload = false
-  autoUpdater.autoInstallOnAppQuit = true
+  // Setup auto-updater AFTER window is created
+  setupAutoUpdater()
 
-  setInterval(() => {
-    autoUpdater.checkForUpdatesAndNotify()
-  }, 1000 * 60 * 15)
-
-  autoUpdater.on('update-available', (info) => {
-    dialog
-      .showMessageBox({
-        type: 'info',
-        title: 'Nouvelle Mise à Jour Disponible',
-        message: `Nouvelle version (${info.version}) est disponible. Voulez-vous la télécharger?`,
-        buttons: ['Télécharger', 'Aprés']
-      })
-      .then((result) => {
-        if (result.response === 0) {
-          autoUpdater.downloadUpdate()
-        }
-      })
-  })
-
-  autoUpdater.on('download-progress', (progressTrack) => {
-    log.info('Progression du téléchargement', progressTrack)
-    if (mainWindow) {
-      mainWindow.webContents.send('download-progress', progressTrack)
-    }
-  })
-
-  autoUpdater.on('update-downloaded', () => {
-    dialog
-      .showMessageBox({
-        type: 'info',
-        title: 'Mise à jour prete',
-        message:
-          'Mise à jour téléchargé avec succés et va être installé au prochain redémarrage. Redémarrer maintent?',
-        buttons: ['Redémarrer', 'Pas maintenant']
-      })
-      .then((result) => {
-        if (result.response === 0) {
-          autoUpdater.quitAndInstall()
-        }
-      })
-  })
-
-  autoUpdater.on('error', (err) => {
-    console.error('Autoupdater error: ', err)
-    dialog.showErrorBox(
-      'Erreur de Mise à jour',
-      'Un erreur est survenu lors de la mise à jour, veuillez réessayer plus tard'
-    )
-  })
-
-
+  // Test database query
   try {
-  const products = await db.query.products.findMany({
-    with: {
-      invoiceItems: true
-    }
-  })
-  console.log({ products })
-} catch (error) {
-  console.error('Failed to query products:', error.message)
-}
+    const products = await db.query.products.findMany({
+      with: {
+        invoiceItems: true
+      }
+    })
+    console.log('Products loaded:', products.length)
+  } catch (error) {
+    console.error('Failed to query products:', error.message)
+  }
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
