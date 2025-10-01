@@ -64,7 +64,10 @@ function createWindow() {
 // Setup auto-updater
 function setupAutoUpdater() {
   // Skip in development
-  
+  if (is.dev) {
+    log.info('Skipping auto-updater in development mode')
+    return
+  }
 
   log.info('Setting up auto-updater...')
   log.info('Current version:', app.getVersion())
