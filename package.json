@@ -27,19 +27,25 @@
     "directories": {
       "output": "release"
     },
-    "publish": {
-      "provider": "github",
-      "owner": "berkaouibilalXI",
-      "repo": "PaintMS-vite-elec"
-    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "berkaouibilalXI",
+        "repo": "PaintMS-vite-elec",
+        "vPrefixedTagName": true,
+        "releaseType": "release"
+      }
+    ],
     "appId": "com.paintms.bilal.app",
-    "productName":"PaintMS",
+    "productName": "PaintMS",
     "icon": "resources/icon.png",
-    "win":{
-      "icon":"resources/icon.ico",
-      "target": ["nsis"]
+    "win": {
+      "icon": "resources/icon.ico",
+      "target": [
+        "nsis"
+      ]
     },
-    "nsis":{
+    "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
@@ -55,7 +61,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "db:seed" : "node src/main/server/seed.js",
+    "db:seed": "node src/main/server/seed.js",
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win",
