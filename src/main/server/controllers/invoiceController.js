@@ -8,44 +8,48 @@ import {db} from "../drizzle"
 // Helper function to get logo as base64
 export const getLogoBase64 = () => {
   try {
-    // Determine the correct path based on environment
-    const isDev = process.env.NODE_ENV === 'development';
+    const isDev = process.env.NODE_ENV === 'development' || !require('electron').app.isPackaged;
     
     let logoPath;
     if (isDev) {
-      // In development, go up from server/controllers to project root
+      // Development: from server/controllers to resources
       logoPath = path.join(__dirname, '../../resources/icon.png');
+      console.log('Dev logo path:', logoPath);
     } else {
-      // In production (packaged app), resources are in app.asar or resources folder
+      // Production: Electron packaged app
       const { app } = require('electron');
-      logoPath = path.join(process.resourcesPath, 'icon.png');
-    }
+      
+      // Try multiple production paths
+      const possiblePaths = [
+        path.join(process.resourcesPath, 'icon.png'),
+        path.join(process.resourcesPath, 'resources', 'icon.png'),
+        path.join(app.getAppPath(), 'resources', 'icon.png'),
+        path.join(app.getAppPath(), '..', 'resources', 'icon.png'),
+        path.join(path.dirname(app.getPath('exe')), 'resources', 'icon.png')
+      ];
 
-    console.log('Attempting to load logo from:', logoPath);
+      for (const testPath of possiblePaths) {
+        console.log('Testing production path:', testPath);
+        if (fs.existsSync(testPath)) {
+          logoPath = testPath;
+          console.log('✓ Logo found at:', logoPath);
+          break;
+        }
+      }
 
-    if (fs.existsSync(logoPath)) {
-      const logoBuffer = fs.readFileSync(logoPath);
-      console.log('Logo loaded successfully');
-      return logoBuffer.toString('base64');
-    }
-
-    // Fallback: try alternative paths
-    const fallbackPaths = [
-      path.join(__dirname, '../../resources/icon.icon.png'),
-      path.join(process.cwd(), 'resources/icon.png'),
-      path.join(__dirname, '../../../resources/icon.png')
-    ];
-
-    for (const altPath of fallbackPaths) {
-      console.log('Trying fallback path:', altPath);
-      if (fs.existsSync(altPath)) {
-        const logoBuffer = fs.readFileSync(altPath);
-        console.log('Logo loaded from fallback path');
-        return logoBuffer.toString('base64');
+      if (!logoPath) {
+        console.error('Logo not found in any production path');
+        return '';
       }
     }
 
-    console.log('Logo not found in any path');
+    if (fs.existsSync(logoPath)) {
+      const logoBuffer = fs.readFileSync(logoPath);
+      console.log('Logo loaded successfully, size:', logoBuffer.length);
+      return logoBuffer.toString('base64');
+    }
+
+    console.error('Logo file does not exist at:', logoPath);
     return '';
   } catch (error) {
     console.error('Error reading logo file:', error);

@@ -1,6 +1,6 @@
 {
   "name": "paintms",
-  "version": "1.0.26",
+  "version": "1.0.261",
   "description": "PaintMS Logiciel",
   "main": "out/main/index.js",
   "author": "Berkaoui Bilal",
@@ -18,11 +18,16 @@
       "drizzle/**/*",
       "prisma/**/*",
       "node_modules/.prisma/**/*",
-      "node_modules/@prisma/client/**/*"
+      "node_modules/@prisma/client/**/*",
+      {
+        "from": "resources",
+        "to": "resources"
+      }
     ],
     "files": [
       "out/**/*",
-      "package.json"
+      "package.json",
+      "resources/**/*"
     ],
     "directories": {
       "output": "release"
