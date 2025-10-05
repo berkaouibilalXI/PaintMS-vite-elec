@@ -7,10 +7,19 @@ const api = {
   print: async (htmlContent, options = {}) => {
     return await ipcRenderer.invoke('print-content', htmlContent, options)
   },
-  
+ 
   // PDF Export API
   exportPDF: async (htmlContent, options = {}) => {
     return await ipcRenderer.invoke('export-pdf', htmlContent, options)
+  },
+  
+  // Database Backup/Restore APIs
+  backupDatabase: async () => {
+    return await ipcRenderer.invoke('backup-database')
+  },
+  
+  restoreDatabase: async () => {
+    return await ipcRenderer.invoke('restore-database')
   },
  
   // Check if running in Electron

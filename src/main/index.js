@@ -7,6 +7,7 @@ import icon from '../../resources/icon.png?asset'
 import { initializeDatabase } from './server/seed.js'
 import { startServer } from './server/index.js'
 import { db } from './server/drizzle/index.js'
+import fs from "fs/promises"
 
 // Configure electron-log
 log.transports.file.level = 'info'
@@ -83,7 +84,7 @@ function setupAutoUpdater() {
   autoUpdater.on('update-available', (info) => {
     log.info('Update available:', info.version)
     console.log('Update available:', info.version)
-    
+
     dialog
       .showMessageBox({
         type: 'info',
@@ -106,7 +107,7 @@ function setupAutoUpdater() {
   autoUpdater.on('download-progress', (progressTrack) => {
     log.info('Download progress:', progressTrack.percent)
     console.log('Download progress:', progressTrack.percent + '%')
-    
+
     if (mainWindow) {
       mainWindow.webContents.send('download-progress', progressTrack)
     }
@@ -115,7 +116,7 @@ function setupAutoUpdater() {
   autoUpdater.on('update-downloaded', (info) => {
     log.info('Update downloaded:', info.version)
     console.log('Update downloaded:', info.version)
-    
+
     dialog
       .showMessageBox({
         type: 'info',
@@ -134,7 +135,7 @@ function setupAutoUpdater() {
   autoUpdater.on('error', (err) => {
     log.error('Auto-updater error:', err)
     console.error('Auto-updater error:', err)
-    
+
     dialog.showErrorBox(
       'Erreur de Mise à jour',
       `Une erreur est survenue lors de la mise à jour: ${err.message}`
@@ -148,10 +149,13 @@ function setupAutoUpdater() {
   }, 3000) // Wait 3 seconds after app starts
 
   // Check every 15 minutes
-  setInterval(() => {
-    log.info('Periodic update check...')
-    autoUpdater.checkForUpdates()
-  }, 1000 * 60 * 15)
+  setInterval(
+    () => {
+      log.info('Periodic update check...')
+      autoUpdater.checkForUpdates()
+    },
+    1000 * 60 * 15
+  )
 }
 
 app.whenReady().then(async () => {
@@ -176,9 +180,7 @@ app.whenReady().then(async () => {
         }
       })
 
-      await printWin.loadURL(
-        `data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`
-      )
+      await printWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`)
       await new Promise((resolve) => setTimeout(resolve, 1000))
 
       const printOptions = {
@@ -236,9 +238,7 @@ app.whenReady().then(async () => {
         }
       })
 
-      await pdfWin.loadURL(
-        `data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`
-      )
+      await pdfWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`)
       await new Promise((resolve) => setTimeout(resolve, 500))
 
       const pdfData = await pdfWin.webContents.printToPDF({
@@ -266,7 +266,7 @@ app.whenReady().then(async () => {
   })
 
   createWindow()
-  
+
   // Setup auto-updater AFTER window is created
   setupAutoUpdater()
 
@@ -281,6 +281,129 @@ app.whenReady().then(async () => {
   } catch (error) {
     console.error('Failed to query products:', error.message)
   }
+
+  ipcMain.handle('backup-database', async (event) => {
+    try {
+      const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
+
+      // Get database path (same logic as your drizzle/index.js)
+      let dbPath
+      if (isDev) {
+        dbPath = path.join(process.cwd(), 'local.db')
+      } else {
+        const userDataPath = app.getPath('userData')
+        dbPath = path.join(userDataPath, 'paintms.db')
+      }
+
+      console.log('Attempting to backup database from:', dbPath)
+
+      // Check if database exists
+      try {
+        await fs.access(dbPath)
+      } catch {
+        return { success: false, error: 'Base de données introuvable' }
+      }
+
+      // Show save dialog
+      const result = await dialog.showSaveDialog({
+        title: 'Sauvegarder la base de données',
+        defaultPath: `paintms-backup-${new Date().toISOString().split('T')[0]}.db`,
+        filters: [
+          { name: 'Database Files', extensions: ['db'] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
+      })
+
+      if (result.canceled) {
+        return { success: false, canceled: true }
+      }
+
+      // Copy database file
+      await fs.copyFile(dbPath, result.filePath)
+
+      log.info('Database backed up to:', result.filePath)
+      return { success: true, path: result.filePath }
+    } catch (error) {
+      log.error('Backup error:', error)
+      return { success: false, error: error.message }
+    }
+  })
+
+  // Database restore handler
+  ipcMain.handle('restore-database', async (event) => {
+    try {
+      // Show warning dialog
+      const confirmResult = await dialog.showMessageBox({
+        type: 'warning',
+        title: 'Restaurer la base de données',
+        message: 'Cette action va remplacer votre base de données actuelle.',
+        detail: 'Toutes les données non sauvegardées seront perdues. Voulez-vous continuer?',
+        buttons: ['Annuler', 'Continuer'],
+        defaultId: 0,
+        cancelId: 0
+      })
+
+      if (confirmResult.response === 0) {
+        return { success: false, canceled: true }
+      }
+
+      // Show open dialog
+      const result = await dialog.showOpenDialog({
+        title: 'Sélectionner une sauvegarde',
+        filters: [
+          { name: 'Database Files', extensions: ['db'] },
+          { name: 'All Files', extensions: ['*'] }
+        ],
+        properties: ['openFile']
+      })
+
+      if (result.canceled) {
+        return { success: false, canceled: true }
+      }
+
+      const backupPath = result.filePaths[0]
+      const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
+
+      // Target database path
+      let dbPath
+      if (isDev) {
+        dbPath = path.join(process.cwd(), 'local.db')
+      } else {
+        const userDataPath = app.getPath('userData')
+        dbPath = path.join(userDataPath, 'paintms.db')
+      }
+
+      // Create backup of current database before restore
+      const currentBackupPath = dbPath + '.before-restore'
+      await fs.copyFile(dbPath, currentBackupPath)
+
+      // Restore the backup
+      await fs.copyFile(backupPath, dbPath)
+
+      log.info('Database restored from:', backupPath)
+      log.info('Previous database backed up to:', currentBackupPath)
+
+      // Show restart prompt
+      const restartResult = await dialog.showMessageBox({
+        type: 'info',
+        title: 'Restauration réussie',
+        message: 'Base de données restaurée avec succès!',
+        detail: "L'application doit redémarrer pour appliquer les changements.",
+        buttons: ['Redémarrer maintenant', 'Plus tard'],
+        defaultId: 0
+      })
+
+      if (restartResult.response === 0) {
+        app.relaunch()
+        app.quit()
+      }
+
+      return { success: true, path: backupPath }
+    } catch (error) {
+      log.error('Restore error:', error)
+      return { success: false, error: error.message }
+    }
+  })
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

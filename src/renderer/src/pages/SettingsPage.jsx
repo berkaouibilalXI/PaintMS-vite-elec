@@ -13,7 +13,11 @@ import {
   CheckCircle,
   LogOut,
   Moon,
-  Sun
+  Sun,
+  Database,
+  Download,
+  Upload,
+  AlertTriangle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,11 +25,11 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import settingsService from '../services/settingService';
 import { useDarkMode } from '@/context/DarkModeContext';
+import toast from 'react-hot-toast';
 
 export default function SettingsPage() {
   const [user, setUser] = useState({ name: '', email: '', theme: 'light', loginType: 'email' });
@@ -39,7 +43,8 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState({
     password: false,
     profile: false,
-    logs: false
+    logs: false,
+    backup: false
   });
   const [message, setMessage] = useState({ type: '', text: '' });
   const [showPasswords, setShowPasswords] = useState({
@@ -58,7 +63,6 @@ export default function SettingsPage() {
   }, [getCurrentTheme]);
 
   const loadUserData = () => {
-    // Simulated user data - replace with actual API call
     const userData = {
       name: 'Utilisateur',
       email: 'user@paintms.com',
@@ -77,7 +81,6 @@ export default function SettingsPage() {
     } catch (error) {
       console.error('Error loading logs:', error);
       setLogs([
-        // Mock data for demonstration
         { id: 1, action: 'LOGIN_SUCCESS', details: '{"email":"user@paintms.com"}', createdAt: new Date().toISOString() },
         { id: 2, action: 'PROFILE_UPDATED', details: '{"email":"user@paintms.com"}', createdAt: new Date(Date.now() - 86400000).toISOString() },
         { id: 3, action: 'PASSWORD_CHANGED', details: '{}', createdAt: new Date(Date.now() - 172800000).toISOString() },
@@ -85,10 +88,6 @@ export default function SettingsPage() {
     } finally {
       setLoading(prev => ({ ...prev, logs: false }));
     }
-  };
-
-  const applyTheme = () => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
   };
 
   const showMessage = (type, text) => {
@@ -114,7 +113,7 @@ export default function SettingsPage() {
       await settingsService.changePassword(passwordData.currentPassword, passwordData.newPassword);
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
       showMessage('success', 'Mot de passe modifié avec succès');
-      loadUserLogs(); // Refresh logs
+      loadUserLogs();
     } catch (error) {
       showMessage('error', error.response?.data?.message || 'Erreur lors du changement de mot de passe');
     } finally {
@@ -130,7 +129,7 @@ export default function SettingsPage() {
       const response = await settingsService.updateProfile(profileData);
       setUser(prev => ({ ...prev, ...response.user }));
       showMessage('success', 'Profil mis à jour avec succès');
-      loadUserLogs(); // Refresh logs
+      loadUserLogs();
     } catch (error) {
       showMessage('error', error.response?.data?.message || 'Erreur lors de la mise à jour du profil');
     } finally {
@@ -155,6 +154,47 @@ export default function SettingsPage() {
 
   const togglePasswordVisibility = (field) => {
     setShowPasswords(prev => ({ ...prev, [field]: !prev[field] }));
+  };
+
+  // Database Backup/Restore handlers
+  const handleBackup = async () => {
+    setLoading(prev => ({ ...prev, backup: true }));
+    try {
+      const result = await window.api.backupDatabase();
+      
+      if (result.success) {
+        toast.success('Sauvegarde créée avec succès!');
+      } else if (result.canceled) {
+        toast.info('Sauvegarde annulée');
+      } else {
+        toast.error(`Erreur: ${result.error}`);
+      }
+    } catch (error) {
+      toast.error('Erreur lors de la sauvegarde');
+      console.error(error);
+    } finally {
+      setLoading(prev => ({ ...prev, backup: false }));
+    }
+  };
+
+  const handleRestore = async () => {
+    setLoading(prev => ({ ...prev, backup: true }));
+    try {
+      const result = await window.api.restoreDatabase();
+      
+      if (result.success) {
+        toast.success('Base de données restaurée!');
+      } else if (result.canceled) {
+        toast.info('Restauration annulée');
+      } else {
+        toast.error(`Erreur: ${result.error}`);
+      }
+    } catch (error) {
+      toast.error('Erreur lors de la restauration');
+      console.error(error);
+    } finally {
+      setLoading(prev => ({ ...prev, backup: false }));
+    }
   };
 
   const getActionBadgeColor = (action) => {
@@ -198,7 +238,7 @@ export default function SettingsPage() {
       )}
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="profile" className="flex items-center gap-2">
             <User className="w-4 h-4" />
             Profil
@@ -210,6 +250,10 @@ export default function SettingsPage() {
           <TabsTrigger value="appearance" className="flex items-center gap-2">
             <Palette className="w-4 h-4" />
             Apparence
+          </TabsTrigger>
+          <TabsTrigger value="backup" className="flex items-center gap-2">
+            <Database className="w-4 h-4" />
+            Sauvegarde
           </TabsTrigger>
           <TabsTrigger value="activity" className="flex items-center gap-2">
             <Activity className="w-4 h-4" />
@@ -351,9 +395,9 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h4 className="font-medium text-blue-900 mb-2">Conseils pour un mot de passe fort :</h4>
-                  <ul className="text-sm text-blue-800 space-y-1">
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                  <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Conseils pour un mot de passe fort :</h4>
+                  <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
                     <li>• Au moins 8 caractères</li>
                     <li>• Mélange de lettres majuscules et minuscules</li>
                     <li>• Inclure des chiffres et des caractères spéciaux</li>
@@ -427,6 +471,74 @@ export default function SettingsPage() {
                     <SelectItem value="ar" disabled>العربية (Bientôt)</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Backup Tab - NEW */}
+        <TabsContent value="backup">
+          <Card>
+            <CardHeader>
+              <CardTitle>Sauvegarde et Restauration</CardTitle>
+              <CardDescription>
+                Gérez les sauvegardes de votre base de données
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-start gap-4">
+                <Database className="w-8 h-8 text-blue-500 flex-shrink-0 mt-1" />
+                <div className="flex-1">
+                  <h3 className="font-semibold mb-1">Sauvegarder la base de données</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Créez une copie de sauvegarde de toutes vos données (clients, produits, factures)
+                  </p>
+                  <Button 
+                    onClick={handleBackup}
+                    disabled={loading.backup}
+                    className="gap-2"
+                    variant="outline"
+                  >
+                    <Download className="w-4 h-4" />
+                    {loading.backup ? 'Sauvegarde...' : 'Sauvegarder maintenant'}
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="border-t pt-6 flex items-start gap-4">
+                <Upload className="w-8 h-8 text-orange-500 flex-shrink-0 mt-1" />
+                <div className="flex-1">
+                  <h3 className="font-semibold mb-1">Restaurer la base de données</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Restaurez une sauvegarde précédente. <strong>Attention:</strong> cela remplacera toutes les données actuelles.
+                  </p>
+                  <Button 
+                    onClick={handleRestore}
+                    disabled={loading.backup}
+                    variant="destructive"
+                    className="gap-2"
+                  >
+                    <Upload className="w-4 h-4" />
+                    {loading.backup ? 'Restauration...' : 'Restaurer depuis un fichier'}
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                <div className="flex gap-2">
+                  <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
+                      Conseils de sauvegarde
+                    </h4>
+                    <ul className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                      <li>• Créez des sauvegardes régulières (au moins une fois par semaine)</li>
+                      <li>• Stockez les sauvegardes dans un endroit sûr (disque externe, cloud)</li>
+                      <li>• Testez vos sauvegardes occasionnellement</li>
+                      <li>• Avant toute restauration, une sauvegarde automatique est créée</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
